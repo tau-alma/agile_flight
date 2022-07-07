@@ -10,8 +10,8 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Empty
 
 from envsim_msgs.msg import ObstacleArray
-from rl_example import load_rl_policy
-from user_code import compute_command_vision_based, compute_command_state_based
+#from rl_example import load_rl_policy
+from user_code import compute_command_vision_based, compute_command_state_based, compute_command_cbf_based
 from utils import AgileCommandMode, AgileQuadState
 
 
@@ -27,6 +27,8 @@ class AgilePilotNode:
         self.publish_commands = False
         self.cv_bridge = CvBridge()
         self.state = None
+
+        self.obs_cbf = None
 
         quad_name = 'kingfisher'
 
@@ -55,19 +57,25 @@ class AgilePilotNode:
         if self.state is None:
             return
         cv_image = self.cv_bridge.imgmsg_to_cv2(img_data, desired_encoding='passthrough')
-        command = compute_command_vision_based(self.state, cv_image)
+
+        command = compute_command_cbf_based(self.state, obstacles = self.obs_cbf , cv_image = cv_image)
+        #command = compute_command_vision_based(self.state, cv_image)
         self.publish_command(command)
 
     def state_callback(self, state_data):
         self.state = AgileQuadState(state_data)
 
     def obstacle_callback(self, obs_data):
-        if self.vision_based:
-            return
-        if self.state is None:
-            return
-        command = compute_command_state_based(state=self.state, obstacles=obs_data, rl_policy=self.rl_policy)
-        self.publish_command(command)
+        # if self.vision_based:
+        #     return
+        # if self.state is None:
+        #     return
+        self.obs_cbf = obs_data 
+        #command = compute_command_state_based(state=self.state, obstacles=obs_data, rl_policy=self.rl_policy)
+        #self.publish_command(command)
+    
+    
+
 
     def publish_command(self, command):
         if command.mode == AgileCommandMode.SRT:
